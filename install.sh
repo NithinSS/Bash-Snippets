@@ -1,123 +1,130 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Author: Alexander Epstein https://github.com/alexanderepstein
-currentVersion="1.1.1"
+currentVersion="1.20.0"
+declare -a tools=(cheat cloudup crypt cryptocurrency currency geo lyrics meme movies newton qrify short siteciphers stocks taste todo transfer weather ytview)
+declare -a extraLinuxTools=(maps)
+declare -a extraDarwinTools
+usedGithubInstallMethod="0"
+prefix="/usr/local"
 
-if [[ $# == 0 ]]; then
-
-  echo -n "Do you wish to install currency [Y/n]: "
+askInstall()
+{
+  echo -n "Do you wish to install $1 [Y/n]: "
   read -r answer
-  if [[ "$answer" == "Y" || "$answer" == "y" ]] ;then
-    cd currency || exit 1
-    ./install.sh || exit 1
-    cd .. || exit 1
+  if [[ "$answer" == [Yy] ]]; then
+    cd $1 || return 1
+    echo -n "Installing $1: "
+    chmod a+x $1
+    cp $1 /usr/local/bin > /dev/null 2>&1 || { echo "Failure"; echo "Error copying file, try running install script as sudo"; exit 1; }
+    echo "Success"
+    cd .. || return 1
   fi
+}
 
-  unset answer
-  echo -n "Do you wish to install stocks [Y/n]: "
-  read -r answer
-  if [[ "$answer" == "Y" || "$answer" == "y" ]] ;then
-    cd stocks || exit 1
-    ./install.sh
-    cd .. || exit 1
-
+updateTool()
+{
+  if [[ -f  /usr/local/bin/$1 ]]; then
+    usedGithubInstallMethod="1"
+    cd $1 || return 1
+    echo -n "Installing $1: "
+    chmod a+x $1
+    cp $1 /usr/local/bin > /dev/null 2>&1 || { echo "Failure"; echo "Error copying file, try running install script as sudo"; exit 1; }
+    echo "Success"
+    cd .. || return 1
   fi
+}
 
-  unset answer
-  echo -n "Do you wish to install weather [Y/n]: "
-  read -r answer
-  if [[ "$answer" == "Y" || "$answer" == "y" ]] ;then
-    cd weather || exit 1
-    ./install.sh
-    cd .. || exit 1
-
+extraUpdateTool()
+{
+  if [[ -f  /usr/local/bin/$1 ]]; then
+    usedGithubInstallMethod="1"
+    cd extras || return 1
+    cd $2 || return 1
+    cd $1 || return 1
+    echo -n "Installing $1: "
+    chmod a+x $1
+    cp $1 /usr/local/bin > /dev/null 2>&1 || { echo "Failure"; echo "Error copying file, try running install script as sudo"; exit 1; }
+    echo "Success"
+    cd .. || return 1
+    cd .. || return 1
+    cd .. || return 1
   fi
+}
 
-  unset answer
-  echo -n "Do you wish to install crypt [Y/n]: "
-  read -r answer
-  if [[ "$answer" == "Y" || "$answer" == "y" ]] ;then
-    cd crypt || exit 1
-    ./install.sh
-    cd .. || exit 1
+singleInstall()
+{
+  cd $1 || exit 1
+  echo -n "Installing $1: "
+  chmod a+x $1
+  cp $1 $prefix/bin > /dev/null 2>&1 || { echo "Failure"; echo "Error copying file, try running install script as sudo"; exit 1; }
+  echo "Success"
+  cd .. || exit 1
+}
 
+copyManpage()
+{
+  manPath="$prefix/share/man/man1"
+  if [ -f "$prefix/man/man1/bash-snippets.1" ]; then rm -f "$prefix/man/man1/bash-snippets.1"; fi
+  cp bash-snippets.1 $manPath 2>&1 || { echo "Failure"; echo "Error copying file, try running install script as sudo"; exit 1; }
+}
+
+response=$( echo "$@" | grep -Eo "\-\-prefix")
+
+if [[ $response == "--prefix" ]]; then
+  prefix=$(echo -n "$@" | sed -e 's/--prefix=\(.*\) .*/\1/' | cut -d " " -f 1)
+  mkdir -p $prefix/bin $prefix/share/man/man1
+  if [[ $2 == "all" ]];then
+    for tool in "${tools[@]}"; do
+      singleInstall $tool || exit 1
+    done
+  else
+    for tool in "${@:2}"; do
+      singleInstall $tool || exit 1
+    done
   fi
-
-  unset answer
-  echo -n "Do you wish to install movies [Y/n]: "
-  read -r answer
-  if [[ "$answer" == "Y" || "$answer" == "y" ]] ;then
-    cd movies || exit 1
-    ./install.sh
-    cd .. || exit 1
-  fi
-
-
-fi
-
-if [[ $1  == "currency" ]];then
-  cd currency || exit 1
-  ./install.sh || exit 1
-  cd .. || exit 1
-elif [[ $1 == "stocks" ]]; then
-  cd stocks || exit 1
-  ./install.sh || exit 1
-  cd .. || exit 1
-elif [[ $1 == "weather" ]]; then
-  cd weather || exit 1
-  ./install.sh || exit 1
-  cd .. || exit 1
-elif [[ $1 == "crypt" ]]; then
-  cd crypt || exit 1
-  ./install.sh || exit 1
-  cd .. || exit 1
-elif [[ $1 == "movies" ]]; then
-  cd movies || exit 1
-  ./install.sh || exit 1
-  cd .. || exit 1
-elif [[ $1 == "all" ]];then
-  cd currency || exit 1
-  ./install.sh || exit 1
-  cd .. || exit 1
-  cd stocks || exit 1
-  ./install.sh || exit 1
-  cd .. || exit 1
-  cd weather || exit 1
-  ./install.sh || exit 1
-  cd .. || exit 1
-  cd crypt || exit 1
-  ./install.sh || exit 1
-  cd .. || exit 1
-  cd movies || exit 1
-  ./install.sh || exit 1
-  cd .. || exit 1
+  copyManpage || exit 1
+elif [[ $# == 0 ]]; then
+  for tool in "${tools[@]}"; do
+    askInstall $tool || exit 1
+  done
+  copyManpage || exit 1
 elif [[ $1 == "update" ]]; then
   echo "Updating scripts..."
-  if [[ -f  /usr/local/bin/currency ]];then
-    cd currency || exit 1
-    ./install.sh || exit 1
-    cd .. || exit 1
+  for tool in "${tools[@]}"; do
+    updateTool $tool || exit 1
+  done
+  if [[ $(uname -s) == "Linux" ]]; then
+    for tool in "${extraLinuxTools[@]}"; do
+      extraUpdateTool $tool Linux || exit 1
+    done
   fi
-  if [[ -f  /usr/local/bin/stocks ]];then
-    cd stocks || exit 1
-    ./install.sh || exit 1
-    cd .. || exit 1
+  if [[ $(uname) == "Darwin" ]];then
+    for tool in "${extraDarwinTools[@]}"; do
+      extraUpdateTool $tool Darwin || exit 1
+    done
   fi
-  if [[ -f  /usr/local/bin/weather ]];then
-    cd weather || exit 1
-    ./install.sh || exit 1
-    cd .. || exit 1
+  if [[ $usedGithubInstallMethod == "1" ]]; then
+    copyManpage || exit 1
+  else
+    echo "It appears you have installed bash-snippets through a package manager, you must update it with the respective package manager."
+    exit 1
   fi
-  if [[ -f  /usr/local/bin/crypt ]];then
-    cd crypt || exit 1
-    ./install.sh || exit 1
-    cd .. || exit 1
-  fi
-  if [[ -f  /usr/local/bin/movies ]];then
-    cd movies || exit 1
-    ./install.sh || exit 1
-    cd .. || exit 1
-  fi
+elif [[ $1 == "all" ]]; then
+  for tool in "${tools[@]}"; do
+    singleInstall $tool || exit 1
+  done
+  copyManpage || exit 1
+else
+  singleInstall $1 || exit 1
+  copyManpage || exit 1
 fi
 
+echo -n "( •_•)"
+sleep .75
+echo -n -e "\r( •_•)>⌐■-■"
+sleep .75
+echo -n -e "\r               "
+echo  -e "\r(⌐■_■)"
+sleep .5
 echo "Bash Snippets version $currentVersion"
 echo  "https://github.com/alexanderepstein/Bash-Snippets"
